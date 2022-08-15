@@ -97,7 +97,7 @@ char* concat_filename(const char *directory_name, const char *filename) {
         len++;
     }
 
-    char *buf = new_string(char, len);
+    char *buf = new_string(len);
 
     strncpy(buf, directory_name, len1);
 
