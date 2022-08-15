@@ -27,7 +27,7 @@ static void _string_list_add_impl(struct string_list *self, const char *str) {
 }
 
 static char** _string_list_to_array_impl(struct string_list *self, bool null_tail) {
-    char **arr = new_arr(char*, self->get_size(self) + (null_tail ? 1 : 0));
+    char **arr = new_array(char*, self->get_size(self) + (null_tail ? 1 : 0));
 
     ptrdiff_t pos = 0;
     struct string_list *tmp = self->head;
