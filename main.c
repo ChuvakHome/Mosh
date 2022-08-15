@@ -28,8 +28,6 @@ char* pwd;
 struct kv_list *var_list;
 struct string_list *paths;
 
-static int pipe_fds[2];
-
 static void fill_paths(char* paths_str) {
     paths = string_list_create();
 
@@ -101,12 +99,12 @@ static struct pair get_pair(const char* s) {
 
     const size_t key_str_size = (size_t) (pos - s);
 
-    char* key = new_arr(char, key_str_size);
+    char* key = new_string(key_str_size);
     key[key_str_size] = 0;
     strncpy(key, s, key_str_size);
 
     const size_t value_str_size = strlen(pos + 1);
-    char* value = new_arr(char, value_str_size);
+    char* value = new_string(value_str_size);
     value[value_str_size] = 0;
     strncpy(value, pos + 1, value_str_size);
 
