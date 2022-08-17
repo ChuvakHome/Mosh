@@ -3,8 +3,6 @@
 
 #include <libgen.h>
 
-#include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include <stdio.h>
@@ -141,4 +139,29 @@ char* get_full_name(const char* filename) {
     }
 
     return concat_filename(pwd, filename);
+}
+
+struct string_list* split_string(const char *str, const char *delim) {
+    if (str == NULL || delim == NULL)
+        return NULL;
+
+    size_t delim_len = strlen(delim);
+
+    struct string_list *list = string_list_create();
+    char *pos;
+
+    while ((pos = strstr(str, delim)) != NULL) {
+        char *s = substrp(str, pos);
+
+        if (s[0] != 0)
+            list->add(list, s);
+
+        free(s);
+        str = pos + delim_len;
+    }
+
+    if (str[0] != 0)
+      list->add(list, str);
+
+    return list;
 }

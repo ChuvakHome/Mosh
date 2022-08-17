@@ -1,6 +1,7 @@
 CC=gcc
 CFLAGS=-std=c11 -I/usr/local/include -c -Wall
-LDFLAGS=-L/usr/local/lib -lreadline -lhistory
+#LDFLAGS=-Llib -lreadline -lhistory
+LDFLAGS=lib/*.a
 SOURCES=main.c kv_list.c string_list.c interpreter.c utils.c
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=my_shell

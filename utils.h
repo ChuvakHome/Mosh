@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "string_list.h"
+
 #define new(type) malloc(sizeof(type))
 #define new_array(type, length) malloc(sizeof(type) * ((size_t) (length)))
 #define new_string(length) new_array(char, (length) + 1);
@@ -27,5 +29,7 @@ char* concat(const char* s1, const char* s2);
 char* concat_filename(const char* directory_name, const char* filename);
 
 bool is_whitespace(char c);
+
+struct string_list* split_string(const char *str, const char *delim);
 
 #endif

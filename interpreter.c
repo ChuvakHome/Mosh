@@ -132,7 +132,9 @@ command_executor executors[] = {
 };
 
 static struct string_list* split_by_whitespaces(const char *str) {
-    struct string_list *list = string_list_create();
+    return split_string(str, " ");
+
+    /*struct string_list *list = string_list_create();
     char *pos;
 
     while ((pos = strstr(str, " ")) != NULL) {
@@ -148,7 +150,7 @@ static struct string_list* split_by_whitespaces(const char *str) {
     if (str[0] != 0)
       list->add(list, str);
 
-    return list;
+    return list;*/
 }
 
 static bool dir_contains_file(const char *directory_name, const char *filename) {

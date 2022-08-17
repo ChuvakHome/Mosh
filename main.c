@@ -30,7 +30,7 @@ static void fill_paths(char* paths_str) {
     paths = string_list_create();
 
     while (strstr(paths_str, ":") != NULL) {
-        char* pos = strstr(paths_str, ":");
+        char *pos = strstr(paths_str, ":");
         size_t cur_path_size = (size_t) (pos - paths_str);
 
         char cur_path[cur_path_size];
@@ -73,7 +73,7 @@ static char* read_command(bool piped_flag) {
     if (!piped_flag) {
         pwd = getwd(NULL);
         char *working_dir_bname = basename(pwd);
-        
+
         snprintf(shell_prompt, sizeof(shell_prompt), "%s %s %% ", username, working_dir_bname);
         command = readline(shell_prompt);
     }
@@ -90,7 +90,7 @@ static char* read_command(bool piped_flag) {
     }
 
     return command;
-};
+}
 
 static struct pair get_pair(const char* s) {
     const char *pos = strstr(s, "=");
@@ -153,6 +153,9 @@ int main(int argc, char **argv, char **env) {
         kv_list_to_array_free(var_list, cur_env);
         free(command);
     }
+
+    if (!piped_flag)
+        puts("");
 
     kv_list_free(var_list);
     string_list_free(paths);
