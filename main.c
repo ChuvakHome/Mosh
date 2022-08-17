@@ -20,9 +20,9 @@
 #include "string_list.h"
 #include "utils.h"
 
-char* username;
-char* home;
-char* pwd;
+char *username;
+char *home;
+char *pwd;
 struct kv_list *var_list;
 struct string_list *paths;
 
