@@ -9,8 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <sys/select.h>
-
 #include <unistd.h>
 
 #include <readline/readline.h>
@@ -155,6 +153,9 @@ int main(int argc, char **argv, char **env) {
         kv_list_to_array_free(var_list, cur_env);
         free(command);
     }
+    
+    if (!piped_flag)
+        puts("");
 
     kv_list_free(var_list);
     string_list_free(paths);
