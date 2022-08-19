@@ -20,8 +20,6 @@
 #include "string_list.h"
 #include "utils.h"
 
-#include "builins/cd.h"
-
 char *username;
 char *home;
 char *pwd;

@@ -12,7 +12,7 @@
 
 #include <unistd.h>
 
-#include "builins/cd.h"
+#include "builtins/cd.h"
 
 #include "global_vars.h"
 
