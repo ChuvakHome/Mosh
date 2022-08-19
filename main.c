@@ -20,6 +20,8 @@
 #include "string_list.h"
 #include "utils.h"
 
+#include "builins/cd.h"
+
 char *username;
 char *home;
 char *pwd;
@@ -61,9 +63,9 @@ static void config() {
     config_binds();
 }
 
-static void print_kv_list_node(const struct kv_list *node) {
-    printf("[self = %p, head = %p, {K: %s, V: %s}, next = %p, tail = %p]\n",
-    node, node->head, node->data.key, node->data.value, node->next, node->tail);
+static void print_kv_list_node(const struct kv_list_node *node) {
+    printf("[self = %p, {K: %s, V: %s}, next = %p]\n",
+    node, node->data.key, node->data.value, node->next);
 }
 
 static char* read_command(bool piped_flag) {
@@ -129,6 +131,9 @@ static void handler_function(int sig) {
 }
 
 int main(int argc, char **argv, char **env) {
+    // printf("%s\n", matches_template("file_comp_1232", "file_comp_1232") ? "true" : "false");
+
+#ifndef __MY_SHELL_DEBUG__
     init_var_list(env);
 
     config();
@@ -159,6 +164,7 @@ int main(int argc, char **argv, char **env) {
 
     kv_list_free(var_list);
     string_list_free(paths);
+#endif
 
     return 0;
 }

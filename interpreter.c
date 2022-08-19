@@ -12,6 +12,8 @@
 
 #include <unistd.h>
 
+#include "builins/cd.h"
+
 #include "global_vars.h"
 
 #include "string_list.h"
@@ -39,63 +41,6 @@ struct builtin_func builtin_func_list[] = {
 };
 
 typedef int (*command_executor)(const char* command_name, char **args, char **env);
-
-static void change_pwd() {
-    pwd = var_list->find(var_list, "PWD");
-    var_list->put(var_list, "OLDPWD", pwd);
-
-    pwd = getwd(NULL);
-    var_list->put(var_list, "PWD", pwd);
-}
-
-static int do_cd(const char* command_name, char **args, char **env) {
-    const char* arg1 = args[1];
-    char* new_working_dir;
-
-    bool oldpwd_not_set = false;
-    bool print_path_flag = false;
-
-    if (arg1 == NULL)
-        new_working_dir = var_list->find(var_list, "HOME");
-    else if (strcmp(arg1, "-") == 0) {
-        new_working_dir = var_list->find(var_list, "OLDPWD");
-
-        print_path_flag = true;
-        oldpwd_not_set = new_working_dir == NULL;
-    }
-    else
-        new_working_dir = get_full_name(arg1);
-
-    int cd_result = chdir(new_working_dir);
-
-    if (cd_result == 0) {
-        if (oldpwd_not_set)
-            fputs("OLDPWD not set\n", stderr);
-        else {
-            if (print_path_flag)
-                printf("%s\n", new_working_dir);
-
-            change_pwd();
-        }
-    }
-    else {
-        switch (errno) {
-            case EACCES:
-                fprintf(stderr, "%s: permission denied: %s\n", "autocd", arg1);
-                break;
-            case ENOENT:
-                fprintf(stderr, "%s: no such file or directory: %s\n", "autocd", arg1);
-                break;
-            case ENOTDIR:
-                fprintf(stderr, "%s: not a directory: %s\n", "autocd", arg1);
-                break;
-            default:
-                break;
-        }
-    }
-
-    return cd_result;
-}
 
 static int do_help(const char* command_name, char **args, char **env) {
     return 0;
@@ -191,7 +136,7 @@ static bool dir_contains_file(const char *directory_name, const char *filename) 
 }
 
 static char* find_file(const char *filename) {
-    struct string_list *tmp = paths->head;
+    struct string_list_node *tmp = paths->head;
 
     while (tmp != NULL) {
         if (dir_contains_file(tmp->str, filename))
@@ -274,8 +219,11 @@ static enum builtin_func_type find_builtin_for(const char* command) {
     }
 }*/
 
-static void do_autocd(const char* filename) {
-    pwd = var_list->find(var_list, "PWD");
+static void do_autocd(const char* filename, char **env) {
+    char *args[3] = { "autocd", (void*) filename, NULL };
+    do_cd("autocd", args, env);
+
+    /*pwd = getwd(NULL);
 
     if (dir_contains_file(pwd, filename)) {
         DIR *dir = opendir(filename);
@@ -284,9 +232,9 @@ static void do_autocd(const char* filename) {
             closedir(dir);
 
             char *args[3] = { "autocd", (void*) filename, NULL };
-            do_cd("autocd", args, NULL);
+            do_cd("autocd", args, env);
         }
-    }
+    }*/
 }
 
 void process_command(const char* command, char **env) {
@@ -300,12 +248,12 @@ void process_command(const char* command, char **env) {
     enum builtin_func_type type = find_builtin_for(command_name);
 
     if (type != UNKNOWN_BUILTIN) {
-        executors[type](command, new_args, env);
+        executors[type](command_name, new_args, env);
     }
     else {
         exec_command(command_name, new_args, env);
 
-        do_autocd(command_name);
+        do_autocd(command_name, env);
     }
 
     free(command_name);

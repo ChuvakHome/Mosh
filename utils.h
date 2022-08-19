@@ -32,4 +32,6 @@ bool is_whitespace(char c);
 
 struct string_list* split_string(const char *str, const char *delim);
 
+bool matches_template(const char *str, const char *template);
+
 #endif

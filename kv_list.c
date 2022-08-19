@@ -1,14 +1,21 @@
 
 #include "kv_list.h"
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "utils.h"
 
 void pair_free(struct pair p) {
     free(p.key);
     free(p.value);
+}
+
+static void free_node(struct kv_list_node *node) {
+    if (node != NULL)
+        pair_free(node->data);
+
+    free(node);
 }
 
 static char* stringify_pair(struct pair p) {
@@ -36,15 +43,29 @@ static char* stringify_pair(struct pair p) {
     return buf;
 }
 
+static struct kv_list_node* create_node(struct kv_list* list, struct pair data) {
+    struct kv_list_node* new_node = new(struct kv_list_node);
+    new_node->data.key = alloc_and_copy(data.key);
+    new_node->data.value = alloc_and_copy(data.value);
+    new_node->next = NULL;
+
+    if (list->tail != NULL)
+        list->tail->next = new_node;
+
+    list->tail = new_node;
+
+    return new_node;
+}
+
 static size_t _kv_list_get_size_impl(const struct kv_list *self) {
-    return self->head->size;
+    return self->size;
 }
 
 static char** _kv_list_to_array_impl(struct kv_list *self, bool null_tail) {
     char** array = new_array(char*, self->get_size(self) + (null_tail ? 1 : 0));
 
     ptrdiff_t pos = 0;
-    struct kv_list *tmp = self->head;
+    struct kv_list_node *tmp = self->head;
 
     while (tmp != NULL) {
         array[pos++] = stringify_pair(tmp->data);
@@ -59,75 +80,66 @@ static char** _kv_list_to_array_impl(struct kv_list *self, bool null_tail) {
 }
 
 static void _kv_list_add_impl(struct kv_list *self, struct pair p) {
-    struct kv_list *node = self->find_node(self, p.key);
+    struct kv_list_node *node = self->find_node(self, p.key);
 
     if (node != NULL || p.key == NULL)
-      return;
+        return;
 
     if (self->head == NULL) {
-      self->head = self;
-      self->data.key = alloc_and_copy(p.key);
-      self->data.value = alloc_and_copy(p.value);
-      self->tail = self->head;
-      self->tail->next = NULL;
+        self->head = create_node(self, p);
     }
     else {
-      self = self->head;
-      self->tail->next = new(struct kv_list);
+      // self = self->head;
+      // self->tail->next = new(struct kv_list);
+      //
+      // self->tail = self->tail->next;
+      //
+      // self->tail->data.key = alloc_and_copy(p.key);
+      // self->tail->data.value = alloc_and_copy(p.value);
+      //
+      // self->tail->head = self->head;
+      // self->tail->tail = self->tail;
+      // self->tail->next = NULL;
 
-      self->tail = self->tail->next;
-
-      self->tail->data.key = alloc_and_copy(p.key);
-      self->tail->data.value = alloc_and_copy(p.value);
-
-      self->tail->head = self->head;
-      self->tail->tail = self->tail;
-      self->tail->next = NULL;
+        create_node(self, p);
     }
 
-    self->head->size++;
+    self->size++;
 }
 
-static struct kv_list* _kv_list_find_node_impl(struct kv_list *self, const char *key) {
-    struct kv_list *tmp = self->head;
+static struct kv_list_node* _kv_list_find_node_impl(struct kv_list *self, const char *key) {
+    struct kv_list_node *tmp = self->head;
 
     while (tmp != NULL) {
-      if (strcmp(tmp->data.key, key) == 0)
-        return tmp;
+        if (strcmp(tmp->data.key, key) == 0)
+          return tmp;
 
-      tmp = tmp->next;
+        tmp = tmp->next;
     }
 
     return NULL;
 }
 
 static char* _kv_list_find_impl(struct kv_list *self, const char *key) {
-    struct kv_list *tmp = self->head;
+    struct kv_list_node *node = self->find_node(self, key);
 
-    while (tmp != NULL) {
-      if (strcmp(tmp->data.key, key) == 0)
-        return tmp->data.value;
-
-      tmp = tmp->next;
-    }
+    if (node != NULL)
+        return node->data.value;
 
     return NULL;
 }
 
-static void _kv_list_put_impl(struct kv_list *self, const char *key, const char *value) {
-    struct kv_list *node = self->find_node(self, key);
+static void _kv_list_put_impl(struct kv_list *self, const char *key, const char *value) {  
+    struct kv_list_node *node = self->find_node(self, key);
 
-    if (node != NULL) {
-        // free(node->data.value);
-        // node->data.value = alloc_and_copy(value);
+    if (node != NULL)
         node->data.value = realloc_and_copy(value, node->data.value);
-    }
     else
-      self->add(self, (struct pair) { .key = (void*) key, .value = (void*) value });
+        self->add(self, (struct pair) { .key = (void*) key, .value = (void*) value });
 }
 
 static void _kv_list_foreach_impl(struct kv_list *self, consumer f) {
-    const struct kv_list *tmp = self->head;
+    const struct kv_list_node *tmp = self->head;
 
     while (tmp != NULL) {
         f(tmp);
@@ -140,9 +152,7 @@ struct kv_list* kv_list_create() {
     struct kv_list *result = new(struct kv_list);
     result->head = NULL;
     result->tail = NULL;
-    result->next = NULL;
 
-    result->data = (struct pair) { .key = NULL, .value = NULL };
     result->size = 0;
 
     result->add = _kv_list_add_impl;
@@ -157,13 +167,12 @@ struct kv_list* kv_list_create() {
 }
 
 void kv_list_free(struct kv_list* list) {
-    struct kv_list *tmp = list->head;
+    struct kv_list_node *tmp = list->head;
 
     while (tmp != NULL) {
-        struct kv_list *remove = tmp;
+        struct kv_list_node *remove = tmp;
         tmp = tmp->next;
-        pair_free(remove->data);
-        free(remove);
+        free_node(tmp);
     }
 }
 

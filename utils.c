@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 
+#include <unistd.h>
+
 #include "global_vars.h"
 
 char* int_to_str(int x) {
@@ -126,7 +128,7 @@ char* get_full_name(const char* filename) {
     if (len > 1 && filename[0] == '/')
         return alloc_and_copy(filename);
 
-    pwd = var_list->find(var_list, "PWD");
+    pwd = getwd(NULL);
 
     if (len <= 2) {
         if (strcmp(filename, ".") == 0)
@@ -164,4 +166,32 @@ struct string_list* split_string(const char *str, const char *delim) {
       list->add(list, str);
 
     return list;
+}
+
+bool matches_template(const char *str, const char *template) {
+    if (strstr(template, "*") == NULL)
+        return strcmp(str, template) == 0;
+
+    struct string_list *split_list = split_string(template, "*");
+    struct string_list_node *tmp = split_list->head;
+
+    char *my_str = (void*) str;
+    size_t len = strlen(str);
+
+    while (tmp != NULL) {
+        char *pos = strstr(my_str, tmp->str);
+
+        if (pos == NULL)
+            return false;
+
+        // if ((pos - my_str) >= len)
+        //     return false;
+
+        my_str = pos + strlen(tmp->str);
+        tmp = tmp->next;
+    }
+
+    string_list_free(split_list);
+
+    return true;
 }

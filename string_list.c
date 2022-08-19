@@ -1,36 +1,146 @@
 
 #include "string_list.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "utils.h"
 
-static void _string_list_add_impl(struct string_list *self, const char *str) {
-    if (self->head == NULL) {
-      self->head = self;
-      self->str = alloc_and_copy(str);
-      self->tail = self->head;
-      self->tail->next = NULL;
+static void free_node(struct string_list_node *node) {
+    if (node != NULL)
+        free(node->str);
+
+    free(node);
+}
+
+static void _set_head(struct string_list *list, struct string_list_node *node) {
+    list->head = node;
+    list->head->prev = NULL;
+}
+
+static void _set_tail(struct string_list *list, struct string_list_node *node) {
+    list->tail = node;
+    list->tail->next = NULL;
+}
+
+static void _string_list_node_remove_node_impl(struct string_list *list, struct string_list_node *node) {
+    struct string_list_node *prev_node = node->prev;
+    struct string_list_node *next_node = node->next;
+
+    list->size--;
+
+    if (prev_node != NULL || next_node != NULL) {
+        if (prev_node != NULL) {
+            prev_node->next = next_node;
+
+            if (next_node != NULL)
+                next_node->prev = prev_node;
+            else
+                _set_tail(list, prev_node);
+        }
+        else
+            _set_head(list, next_node);
     }
     else {
-      self = self->head;
-
-      self->tail->next = new(struct string_list);
-      self->tail = self->tail->next;
-      self->tail->str = alloc_and_copy(str);
-      self->tail->head = self->head;
-      self->tail->tail = self->tail;
-      self->tail->next = NULL;
+        list->head = NULL;
+        list->tail = NULL;
     }
 
-    self->head->size++;
+    free_node(node);
+}
+
+static void _string_list_node_set_string_impl(struct string_list_node *self, char *s) {
+    free(self->str);
+    self->str = s;
+}
+
+static void _string_list_node_copy_string_impl(struct string_list_node *self, const char *s) {
+    self->str = realloc_and_copy(s, self->str);
+}
+
+static struct string_list_node* create_node(struct string_list *list, const char *str) {
+    struct string_list_node* new_node = new(struct string_list_node);
+    new_node->str = alloc_and_copy(str);
+    new_node->prev = list->tail;
+    new_node->next = NULL;
+
+    if (list->tail != NULL)
+        list->tail->next = new_node;
+
+    list->tail = new_node;
+
+    new_node->remove_node = _string_list_node_remove_node_impl;
+    new_node->set_string = _string_list_node_set_string_impl;
+    new_node->copy_string = _string_list_node_copy_string_impl;
+
+    return new_node;
+}
+
+static void _string_list_add_impl(struct string_list *self, const char *str) {
+    if (self->head == NULL) {
+        self->head = create_node(self, str);
+        self->tail->prev = NULL;
+        self->tail->next = NULL;
+    }
+    else
+        create_node(self, str);
+
+    self->size++;
+}
+
+static void _string_list_add_all_impl(struct string_list *self, const struct string_list *from) {
+    if (self != NULL && from != NULL) {
+        struct string_list_node *tmp = from->head;
+
+        while (tmp != NULL) {
+            if (tmp->str != NULL)
+                self->add(self, tmp->str);
+
+            tmp = tmp->next;
+        }
+    }
+}
+
+static void _string_list_copy_impl(struct string_list *self, const struct string_list *from) {
+    if (self != NULL && from != NULL) {
+        self->clear(self);
+        self->add_all(self, from);
+    }
+}
+
+static struct string_list_node* find_node(const struct string_list *list, const char *value) {
+    struct string_list_node *tmp = list->head;
+
+    while (tmp != NULL) {
+        if (tmp->str != NULL && strcmp(tmp->str, value) == 0)
+            return tmp;
+
+        tmp = tmp->next;
+    }
+
+    return NULL;
+}
+
+static void _string_list_remove_impl(struct string_list *self, const char *str) {
+    struct string_list_node *node = find_node(self, str);
+
+    if (node != NULL)
+        node->remove_node(self, node);
+}
+
+static size_t _string_list_get_size_impl(const struct string_list *self) {
+    return self->size;
+}
+
+static bool _string_list_empty_impl(const struct string_list *list) {
+    return list->size == 0;
 }
 
 static char** _string_list_to_array_impl(struct string_list *self, bool null_tail) {
     char **arr = new_array(char*, self->get_size(self) + (null_tail ? 1 : 0));
 
     ptrdiff_t pos = 0;
-    struct string_list *tmp = self->head;
+    struct string_list_node *tmp = self->head;
 
     while (tmp != NULL) {
         arr[pos++] = alloc_and_copy(tmp->str);
@@ -44,25 +154,21 @@ static char** _string_list_to_array_impl(struct string_list *self, bool null_tai
     return arr;
 }
 
-static void _string_list_set_string_impl(struct string_list *self, char *s) {
-    free(self->str);
-    self->str = s;
-}
+static void _string_list_clear_impl(struct string_list *self) {
+    if (self == NULL)
+        return;
 
-static void _string_list_copy_string_impl(struct string_list *self, const char *s) {
-    // free(self->str);
-    //
-    // size_t len = strlen(s);
-    //
-    // self->str = new_arr(char, len);
-    // strncpy(self->str, s, len);
-    // self->str[len] = 0;
+    struct string_list_node *tmp = self->head;
 
-    self->str = realloc_and_copy(s, self->str);
-}
+    while (tmp != NULL) {
+        struct string_list_node *remove_node = tmp;
+        tmp = tmp->next;
+        free_node(remove_node);
+    }
 
-static size_t _string_list_get_size_impl(const struct string_list *self) {
-    return self->head->size;
+    self->head = NULL;
+    self->tail = NULL;
+    self->size = 0;
 }
 
 struct string_list* string_list_create() {
@@ -70,41 +176,33 @@ struct string_list* string_list_create() {
 
     result->head = NULL;
     result->tail = NULL;
-    result->str = NULL;
-    result->next = NULL;
     result->size = 0;
 
     result->add = _string_list_add_impl;
+    result->add_all = _string_list_add_all_impl;
+    result->copy = _string_list_copy_impl;
+    result->remove = _string_list_remove_impl;
     result->to_array = _string_list_to_array_impl;
-    result->set_string = _string_list_set_string_impl;
-    result->copy_string = _string_list_copy_string_impl;
     result->get_size = _string_list_get_size_impl;
+    result->clear = _string_list_clear_impl;
+    result->empty = _string_list_empty_impl;
 
     return result;
 }
 
 void string_list_free(struct string_list *list) {
-    if (list == NULL)
-        return;
+    list->clear(list);
 
-    struct string_list *tmp = list->head;
-
-    while (tmp != NULL) {
-        struct string_list *remove = tmp;
-        tmp = tmp->next;
-
-        free(remove->str);
-        free(remove);
-    }
+    free(list);
 }
 
 void string_list_to_array_free(const struct string_list *list, char **array) {
-    if (array == NULL)
-        return;
+      if (array == NULL)
+          return;
 
-    for (ptrdiff_t i = 0; i < list->get_size(list); ++i) {
-        free(array[i]);
-    }
+      for (ptrdiff_t i = 0; i < list->get_size(list); ++i) {
+          free(array[i]);
+      }
 
-    free(array);
+      free(array);
 }

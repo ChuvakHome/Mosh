@@ -12,23 +12,24 @@ struct pair {
 
 void pair_free(struct pair);
 
+struct kv_list_node;
 struct kv_list;
 
-typedef void (*consumer)(const struct kv_list *node);
+typedef void (*consumer)(const struct kv_list_node *node);
+
+struct kv_list_node {
+    struct pair data;
+    struct kv_list_node *next;
+};
 
 struct kv_list {
-  struct {
-    struct kv_list* head;
-    struct kv_list* tail;
-  };
-
-  struct pair data;
-  struct kv_list *next;
+  struct kv_list_node* head;
+  struct kv_list_node* tail;
 
   size_t size;
 
   void (*add)(struct kv_list *self, struct pair);
-  struct kv_list* (*find_node)(struct kv_list *self, const char *key);
+  struct kv_list_node* (*find_node)(struct kv_list *self, const char *key);
   char* (*find)(struct kv_list *self, const char *key);
   void (*put)(struct kv_list *self, const char *key, const char *value);
   void (*foreach)(struct kv_list *self, consumer f);
