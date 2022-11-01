@@ -6,6 +6,8 @@
 
 #include "utils.h"
 
+#include <stdio.h>
+
 void pair_free(struct pair p) {
     free(p.key);
     free(p.value);
@@ -111,7 +113,7 @@ static struct kv_list_node* _kv_list_find_node_impl(struct kv_list *self, const 
     struct kv_list_node *tmp = self->head;
 
     while (tmp != NULL) {
-        if (strcmp(tmp->data.key, key) == 0)
+        if (tmp->data.key != NULL && strcmp(tmp->data.key, key) == 0)
           return tmp;
 
         tmp = tmp->next;
@@ -129,7 +131,7 @@ static char* _kv_list_find_impl(struct kv_list *self, const char *key) {
     return NULL;
 }
 
-static void _kv_list_put_impl(struct kv_list *self, const char *key, const char *value) {  
+static void _kv_list_put_impl(struct kv_list *self, const char *key, const char *value) {
     struct kv_list_node *node = self->find_node(self, key);
 
     if (node != NULL)

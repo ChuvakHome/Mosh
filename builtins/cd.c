@@ -19,11 +19,11 @@ static void change_pwd() {
     pwd = var_list->find(var_list, "PWD");
     var_list->put(var_list, "OLDPWD", pwd);
 
-    pwd = getwd(NULL);
+    pwd = get_wd();
     var_list->put(var_list, "PWD", pwd);
 }
 
-static struct string_list* files_matches_template(const char *directory_path, const char *template, bool fullname) {
+static struct string_list* get_files_matches_template(const char *directory_path, const char *template, bool fullname) {
     DIR *dir = opendir(directory_path);
 
     if (dir != NULL) {
@@ -34,7 +34,7 @@ static struct string_list* files_matches_template(const char *directory_path, co
             const char *filename = ent->d_name;
             char *fullpath = NULL;
 
-            if (matches_template(filename, template)) {
+            if (strcmp(filename, ".") != 0 && strcmp(filename, "..") != 0 && matches_template(filename, template)) {
                 if (fullname)
                     fullpath = concat_filename(directory_path, filename);
 
@@ -65,13 +65,15 @@ static struct string_list* get_relevant_directories(const char *path) {
     while (list_iter != NULL) {
         char *filename_template = list_iter->str;
 
+        // printf("&> [%p], %s, %zu\n", filename_template, filename_template, strlen(filename_template));
+
         copy_list->copy(copy_list, relevant_directories_list);
         relevant_directories_list->clear(relevant_directories_list);
 
         struct string_list_node *rel_dir_list_iter = copy_list->head;
 
         while (rel_dir_list_iter != NULL) {
-            struct string_list *good_dirs = files_matches_template(rel_dir_list_iter->str, filename_template, true);
+            struct string_list *good_dirs = get_files_matches_template(rel_dir_list_iter->str, filename_template, true);
             relevant_directories_list->add_all(relevant_directories_list, good_dirs);
 
             rel_dir_list_iter = rel_dir_list_iter->next;
@@ -79,6 +81,8 @@ static struct string_list* get_relevant_directories(const char *path) {
 
         list_iter = list_iter->next;
     }
+
+    list_iter = list->head;
 
     free(full_path);
     string_list_free(list);
@@ -108,8 +112,16 @@ int do_cd(const char* command_name, char **args, char **env) {
         rel_dir_list = get_relevant_directories(arg1);
 
         if (rel_dir_list->get_size(rel_dir_list) > 1) {
+            struct string_list_node *tmp = rel_dir_list->head;
+
+            while (tmp != NULL) {
+                printf("NODE: %s\n", tmp->str);
+
+                tmp = tmp->next;
+            }
+
+            fprintf(stderr, "%s: string is not in pwd: %s\n", command_name, rel_dir_list->head->str);
             string_list_free(rel_dir_list);
-            fprintf(stderr, "%s: no matches found: %s\n", command_name, arg1);
 
             return -1;
         }

@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <stdio.h>
+
 #include "utils.h"
 
 static void free_node(struct string_list_node *node) {
@@ -58,8 +60,14 @@ static void _string_list_node_copy_string_impl(struct string_list_node *self, co
     self->str = realloc_and_copy(s, self->str);
 }
 
+static void set_functions_for_node(struct string_list_node* list_node) {
+    list_node->remove_node = _string_list_node_remove_node_impl;
+    list_node->set_string = _string_list_node_set_string_impl;
+    list_node->copy_string = _string_list_node_copy_string_impl;
+}
+
 static struct string_list_node* create_node(struct string_list *list, const char *str) {
-    struct string_list_node* new_node = new(struct string_list_node);
+    struct string_list_node *new_node = new(struct string_list_node);
     new_node->str = alloc_and_copy(str);
     new_node->prev = list->tail;
     new_node->next = NULL;
@@ -69,9 +77,7 @@ static struct string_list_node* create_node(struct string_list *list, const char
 
     list->tail = new_node;
 
-    new_node->remove_node = _string_list_node_remove_node_impl;
-    new_node->set_string = _string_list_node_set_string_impl;
-    new_node->copy_string = _string_list_node_copy_string_impl;
+    set_functions_for_node(new_node);
 
     return new_node;
 }
@@ -79,13 +85,65 @@ static struct string_list_node* create_node(struct string_list *list, const char
 static void _string_list_add_impl(struct string_list *self, const char *str) {
     if (self->head == NULL) {
         self->head = create_node(self, str);
-        self->tail->prev = NULL;
+        self->head->prev = NULL;
         self->tail->next = NULL;
     }
     else
         create_node(self, str);
 
     self->size++;
+}
+
+static void _string_list_insert_impl(struct string_list *self, size_t position, const char *str) {
+    if (self == NULL)
+        return;
+
+    size_t list_size = self->size;
+
+    if (position < 0 || position > list_size)
+        return;
+
+    if (position == 0) {
+        if (self->head == NULL)
+          _string_list_add_impl(self, str);
+        else {
+            struct string_list_node *new_head = new(struct string_list_node);
+
+            new_head->str = alloc_and_copy(str);
+            new_head->prev = NULL;
+            new_head->next = self->head;
+
+            set_functions_for_node(new_head);
+
+            self->head = new_head;
+        }
+    }
+    else if (position == list_size) {
+        _string_list_add_impl(self, str);
+    }
+    else {
+        struct string_list_node *node_at_pos = self->head;
+        struct string_list_node *prev_node = NULL;
+
+        while (position > 0) {
+            prev_node = node_at_pos;
+            node_at_pos = node_at_pos->next;
+            --position;
+        }
+
+        struct string_list_node *new_node = new(struct string_list_node);
+
+        new_node->str = alloc_and_copy(str);
+        new_node->prev = prev_node;
+        new_node->next = node_at_pos;
+
+        prev_node->next = new_node;
+        node_at_pos->prev = new_node;
+
+        set_functions_for_node(new_node);
+    }
+
+    self->size = list_size + 1;
 }
 
 static void _string_list_add_all_impl(struct string_list *self, const struct string_list *from) {
@@ -125,6 +183,13 @@ static void _string_list_remove_impl(struct string_list *self, const char *str) 
     struct string_list_node *node = find_node(self, str);
 
     if (node != NULL)
+        node->remove_node(self, node);
+}
+
+static void _string_list_remove_all_impl(struct string_list *self, const char *str) {
+    struct string_list_node *node;
+
+    while ((node = find_node(self, str)) != NULL)
         node->remove_node(self, node);
 }
 
@@ -178,10 +243,12 @@ struct string_list* string_list_create() {
     result->tail = NULL;
     result->size = 0;
 
+    result->insert = _string_list_insert_impl;
     result->add = _string_list_add_impl;
     result->add_all = _string_list_add_all_impl;
     result->copy = _string_list_copy_impl;
     result->remove = _string_list_remove_impl;
+    result->remove_all = _string_list_remove_all_impl;
     result->to_array = _string_list_to_array_impl;
     result->get_size = _string_list_get_size_impl;
     result->clear = _string_list_clear_impl;
@@ -191,8 +258,10 @@ struct string_list* string_list_create() {
 }
 
 void string_list_free(struct string_list *list) {
-    list->clear(list);
+    if (list == NULL)
+        return;
 
+    list->clear(list);
     free(list);
 }
 

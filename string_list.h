@@ -24,10 +24,12 @@ struct string_list {
 
     size_t size;
 
+    void (*insert)(struct string_list *self, size_t position, const char *path);
     void (*add)(struct string_list *self, const char *path);
     void (*add_all)(struct string_list *self, const struct string_list *from);
     void (*copy)(struct string_list *self, const struct string_list *from);
     void (*remove)(struct string_list *self, const char *value);
+    void (*remove_all)(struct string_list *self, const char *value);
     char** (*to_array)(struct string_list *self, bool null_tail);
     size_t (*get_size)(const struct string_list *self);
     bool (*empty)(const struct string_list *list);

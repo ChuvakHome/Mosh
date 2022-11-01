@@ -66,7 +66,10 @@ char* substr(const char *s, ptrdiff_t i, size_t n) {
 }
 
 char* substrp(const char *begin, const char *end) {
-    char *buf = new_string(end - begin - 1);
+    if (end - begin <= 0)
+        return NULL;
+
+    char *buf = new_string(end - begin);
 
     return copy_string(buf, begin, end);
 }
@@ -128,13 +131,13 @@ char* get_full_name(const char* filename) {
     if (len > 1 && filename[0] == '/')
         return alloc_and_copy(filename);
 
-    pwd = getwd(NULL);
+    pwd = get_wd();
 
     if (len <= 2) {
         if (strcmp(filename, ".") == 0)
             return alloc_and_copy(pwd);
         else if (strcmp(filename, "..") == 0) {
-            return dirname(pwd);
+            return alloc_and_copy(dirname(pwd));
         }
         else if (strcmp(filename, "~") == 0)
             return alloc_and_copy(home);
@@ -155,15 +158,16 @@ struct string_list* split_string(const char *str, const char *delim) {
     while ((pos = strstr(str, delim)) != NULL) {
         char *s = substrp(str, pos);
 
-        if (s[0] != 0)
-            list->add(list, s);
+        if (s != NULL) {
+            list->add(list, NULL);
+            list->tail->set_string(list->tail, s);
+        }
 
-        free(s);
         str = pos + delim_len;
     }
 
     if (str[0] != 0)
-      list->add(list, str);
+        list->add(list, str);
 
     return list;
 }
@@ -176,13 +180,19 @@ bool matches_template(const char *str, const char *template) {
     struct string_list_node *tmp = split_list->head;
 
     char *my_str = (void*) str;
-    size_t len = strlen(str);
+    size_t len = strlen(template);
+    bool result = true;
 
-    while (tmp != NULL) {
+    if (strstr(template, "*") != template) {
+        result = strstr(my_str, tmp->str) == my_str;
+        tmp = tmp->next;
+    }
+
+    while (result && tmp != NULL && tmp->next != NULL) {
         char *pos = strstr(my_str, tmp->str);
 
         if (pos == NULL)
-            return false;
+            result = false;
 
         // if ((pos - my_str) >= len)
         //     return false;
@@ -191,7 +201,51 @@ bool matches_template(const char *str, const char *template) {
         tmp = tmp->next;
     }
 
+    if (result && tmp != NULL && tmp->str != NULL && template[len - 1] != '*') {
+        size_t len1 = strlen(my_str);
+        size_t len2 = strlen(tmp->str);
+
+        if (len1 < len2)
+            result = false;
+        else {
+            my_str += len1 - 1;
+            char *tmp_str = tmp->str + len2 - 1;
+
+            while (result && len2 > 0) {
+                result = *my_str == *tmp_str;
+
+                --my_str;
+                --tmp_str;
+                --len2;
+            }
+        }
+    }
+
     string_list_free(split_list);
 
-    return true;
+    return result;
+}
+
+char* strtok2(const char *str, const char *delim) {
+    char *result = NULL;
+
+    char tmp_delim[] = { 0, 0 };
+
+    for (ptrdiff_t i = 0; delim[i] != 0; ++i) {
+        tmp_delim[0] = delim[i];
+        char *pos = strstr(str, tmp_delim);
+
+        if (pos != NULL && (result == NULL || result > pos))
+            result = pos;
+    }
+
+    return result;
+}
+
+char* get_wd() {
+    #ifdef __APPLE__
+        return getwd(NULL);
+    #else
+        return get_current_dir_name();
+    #endif
 }

@@ -14,11 +14,13 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 
-#include "interpreter.h"
+#include "interpreter/interpreter.h"
 
 #include "kv_list.h"
 #include "string_list.h"
 #include "utils.h"
+
+#define PATH_SEPARATOR ":"
 
 char *username;
 char *home;
@@ -28,14 +30,15 @@ struct string_list *paths;
 
 static void fill_paths(char* paths_str) {
     paths = string_list_create();
+    char *pos;
 
-    while (strstr(paths_str, ":") != NULL) {
-        char *pos = strstr(paths_str, ":");
+    while ((pos = strstr(paths_str, PATH_SEPARATOR)) != NULL) {
         size_t cur_path_size = (size_t) (pos - paths_str);
 
         char cur_path[cur_path_size];
         strncpy(cur_path, paths_str, cur_path_size);
         cur_path[cur_path_size] = 0;
+        // printf("CUR_PATH: %s %zu %zu\n", cur_path, cur_path_size, strlen(cur_path));
 
         paths->add(paths, cur_path);
 
@@ -44,6 +47,17 @@ static void fill_paths(char* paths_str) {
 
     if (strlen(paths_str) > 0)
       paths->add(paths, paths_str);
+
+    // puts(">> PATHS:");
+
+    // struct string_list_node *tmp = paths->head;
+    //
+    // while (tmp != NULL) {
+    //     printf("%s\n", tmp->str);
+    //     tmp = tmp->next;
+    // }
+    //
+    // puts("<< PATHS");
 }
 
 static void config_variables() {
@@ -61,17 +75,12 @@ static void config() {
     config_binds();
 }
 
-static void print_kv_list_node(const struct kv_list_node *node) {
-    printf("[self = %p, {K: %s, V: %s}, next = %p]\n",
-    node, node->data.key, node->data.value, node->next);
-}
-
 static char* read_command(bool piped_flag) {
     char* command = NULL;
     char shell_prompt[1024];
 
     if (!piped_flag) {
-        pwd = getwd(NULL);
+        pwd = get_wd();
         char *working_dir_bname = basename(pwd);
 
         snprintf(shell_prompt, sizeof(shell_prompt), "%s %s %% ", username, working_dir_bname);
@@ -128,8 +137,78 @@ static void handler_function(int sig) {
     rl_forced_update_display();
 }
 
+static void try_do_pipe() {
+    pid_t pid = fork();
+    int status;
+
+    FILE *my_io = fopen("in_buffer", "w");
+    my_io = freopen("in_buffer", "w+", my_io);
+    int io_fd = fileno(my_io);
+
+    // FILE *my_out = fopen("out_buffer", "w");
+    // int out_fd = fileno(my_out);
+
+    int filedes1[] = { io_fd, 1 };
+    pipe(filedes1);
+
+    // dup2(io_fd, 1);
+    // int filedes2[] = { 0, io_fd };
+    // pipe(filedes2);
+    // dup2(0, io_fd);
+
+    if (pid == 0) {
+        execl("/bin/echo", "/bin/echo", "LOL", NULL);
+
+        exit(-1);
+    }
+    else if (pid > 0) {
+        do {
+            waitpid(pid, &status, WUNTRACED);
+        }  while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+        rewind(my_io);
+        int filedes2[] = { 0, io_fd };
+        pipe(filedes2);
+
+        pid = fork();
+
+        if (pid == 0) {
+            execl("/Users/aaamoj/utils/my_print", "/Users/aaamoj/utils/my_print", NULL);
+
+            // puts("KEKKEKE");
+
+            exit(-1);
+        } else if (pid > 0) {
+            do {
+                waitpid(pid, &status, WUNTRACED);
+            }  while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        }
+
+        // exit(-1);
+
+        fclose(my_io);
+        // fclose(my_out);
+    }
+}
+
+bool is_piped() {
+    return isatty(STDIN_FILENO) == 0;
+}
+
+#include "interpreter/interpreter_utils.h"
+
 int main(int argc, char **argv, char **env) {
-    // printf("%s\n", matches_template("file_comp_1232", "file_comp_1232") ? "true" : "false");
+//     init_var_list(env);
+//
+//     char *str = insert_var_values("\"LOL $PWD\"");
+//
+//     printf("STR: %s\n", str);
+
+//     printf("%s\n", matches_template("builtins", "b**s") ? "true" : "false");
+//     printf("%s\n", matches_template("copy", "*y") ? "true" : "false");
+//     printf("%s\n", matches_template("copyleft", "*y") ? "true" : "false");
+//     printf("%s\n", matches_template("copyleft", "cop*y*") ? "true" : "false");
+// #define __MY_SHELL_DEBUG__
 
 #ifndef __MY_SHELL_DEBUG__
     init_var_list(env);
@@ -138,7 +217,7 @@ int main(int argc, char **argv, char **env) {
 
     signal(SIGINT, handler_function);
 
-    bool piped_flag = isatty(fileno(stdin)) == 0;
+    bool piped_flag = is_piped();
 
     while (!feof(stdin)) {
         char* command = read_command(piped_flag);
