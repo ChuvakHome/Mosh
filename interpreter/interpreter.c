@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 
 #include "interpreter.h"
 
@@ -5,11 +6,15 @@
 
 #include <errno.h>
 
+#include <inttypes.h>
+
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 #include <unistd.h>
 
@@ -347,6 +352,27 @@ static char* find_meta_command(const char *meta_command_sign) {
         exec_command(meta_command, new_args, env);                              \
     } while (0);
 
+static struct string_list* template_matchings(const struct string_list *args_list) {
+    struct string_list_node *arg = args_list->head;
+    struct string_list *new_args_list = string_list_create();
+
+    while (arg != NULL) {
+        if (strstr(arg->str, "*") != NULL) {
+            struct string_list *rel_list = get_relevant_directories(arg->str, false);
+            new_args_list->add_all(new_args_list, rel_list);
+
+            string_list_free(rel_list);
+        }
+        else {
+            new_args_list->add(new_args_list, arg->str);
+        }
+
+        arg = arg->next;
+    }
+
+    return new_args_list;
+}
+
 void process_command(const char* command, char **env) {
     struct string_list* tok_list = split_by_whitespaces(command);
     process_list(tok_list);
@@ -355,6 +381,8 @@ void process_command(const char* command, char **env) {
     char *command_name = alloc_and_copy(tok_list->head->str);
 
     tokenize(tok_list);
+    struct string_list *old_tok_list = tok_list;
+    tok_list = template_matchings(old_tok_list);
 
     char **new_args = tok_list->to_array(tok_list, true);
 
@@ -380,6 +408,7 @@ void process_command(const char* command, char **env) {
     }
 
     free(command_name);
+    string_list_free(old_tok_list);
     string_list_to_array_free(tok_list, new_args);
     string_list_free(tok_list);
 }

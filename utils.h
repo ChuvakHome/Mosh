@@ -11,6 +11,7 @@
 #define new(type) malloc(sizeof(type))
 #define new_array(type, length) malloc(sizeof(type) * ((size_t) (length)))
 #define new_string(length) new_array(char, (length) + 1);
+#define string_equals(str1, str2) (strcmp((str1), (str2)) == 0)
 
 char* int_to_str(int x);
 
@@ -20,6 +21,7 @@ char* realloc_and_copy(const char *src, char* dst);
 char* alloc_and_copy(const char *src);
 
 char* get_full_name(const char* filename);
+char* normalize_file_name(const char* filename, char* buffer);
 
 char* copy_string(char *dst, const char* begin, const char* end);
 
@@ -37,5 +39,9 @@ bool matches_template(const char *str, const char *template);
 char* strtok2(const char *str, const char *delim);
 
 char* get_wd();
+
+struct string_list* get_files_matches_template(const char *directory_path, const char *template);
+
+struct string_list* get_relevant_directories(const char *path, bool fullname);
 
 #endif

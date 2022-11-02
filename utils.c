@@ -1,6 +1,8 @@
 
 #include "utils.h"
 
+#include <dirent.h>
+
 #include <libgen.h>
 
 #include <string.h>
@@ -66,7 +68,7 @@ char* substr(const char *s, ptrdiff_t i, size_t n) {
 }
 
 char* substrp(const char *begin, const char *end) {
-    if (end - begin <= 0)
+    if (end - begin < 0)
         return NULL;
 
     char *buf = new_string(end - begin);
@@ -144,6 +146,43 @@ char* get_full_name(const char* filename) {
     }
 
     return concat_filename(pwd, filename);
+}
+
+char* normalize_file_name(const char* filename, char* buffer) {
+    if (filename == NULL)
+        return NULL;
+
+    struct string_list *split_list = split_string(filename, "/");
+    char* normalized_path = buffer;
+
+    if (normalized_path == NULL)
+        normalized_path = new_string(strlen(filename));
+
+    char* normalized_path_ptr = normalized_path;
+
+    struct string_list_node *split_list_node = split_list->head;
+
+    while (split_list_node != NULL) {
+        // printf("NODE: %s\n", split_list_node->str);
+        char *tmp_str = split_list_node->str;
+
+        if (!string_equals(tmp_str, ".")) {
+            size_t len = strlen(tmp_str);
+            strncpy(normalized_path_ptr, tmp_str, len);
+            normalized_path_ptr[len] = '/';
+            normalized_path_ptr[len + 1] = 0;
+
+            normalized_path_ptr += len + 1;
+        }
+
+        split_list_node = split_list_node->next;
+    }
+
+    normalized_path_ptr[strlen(normalized_path_ptr) - 1] = 0;
+
+    string_list_free(split_list);
+
+    return normalized_path;
 }
 
 struct string_list* split_string(const char *str, const char *delim) {
@@ -248,4 +287,90 @@ char* get_wd() {
     #else
         return get_current_dir_name();
     #endif
+}
+
+struct string_list* get_files_matches_template(const char *directory_path, const char *template) {
+    DIR *dir = opendir(directory_path);
+
+    if (dir != NULL) {
+        struct string_list *files_list = string_list_create();
+        struct dirent *ent;
+
+        while ((ent = readdir(dir)) != NULL) {
+            const char *filename = ent->d_name;
+            char *path = NULL;
+
+            // printf("PATH: %s; TEMPL: %s %s\n", filename, template, matches_template(filename, template) ? "true" : "false");
+
+            if (!string_equals(filename, ".") && !string_equals(filename, "..") && matches_template(filename, template)) {
+                path = concat_filename(directory_path, filename);
+
+                files_list->add(files_list, path);
+
+                free(path);
+            }
+        }
+
+        closedir(dir);
+
+        return files_list;
+    }
+    else
+        return NULL;
+}
+
+struct string_list* get_relevant_directories(const char *path, bool fullname) {
+    char *normalized_path = normalize_file_name(path, NULL);
+
+    struct string_list *list = split_string(normalized_path, "/");
+    struct string_list_node *list_iter = list->head;
+
+    struct string_list *relevant_directories_list = string_list_create();
+    struct string_list *copy_list = string_list_create();
+
+    if (path[0] == '/')
+        relevant_directories_list->add(relevant_directories_list, "/");
+    else
+        relevant_directories_list->add(relevant_directories_list, ".");
+
+    while (list_iter != NULL) {
+        char *filename_template = list_iter->str;
+
+        // printf("&> [%p], %s, %zu\n", filename_template, filename_template, strlen(filename_template));
+
+        copy_list->copy(copy_list, relevant_directories_list);
+        relevant_directories_list->clear(relevant_directories_list);
+
+        struct string_list_node *rel_dir_list_iter = copy_list->head;
+
+        while (rel_dir_list_iter != NULL) {
+            struct string_list *good_dirs = get_files_matches_template(rel_dir_list_iter->str, filename_template);
+            relevant_directories_list->add_all(relevant_directories_list, good_dirs);
+
+            string_list_free(good_dirs);
+            rel_dir_list_iter = rel_dir_list_iter->next;
+        }
+
+        list_iter = list_iter->next;
+    }
+
+    if (!fullname) {
+        struct string_list_node *rel_dir_list_iter = relevant_directories_list->head;
+
+        while (rel_dir_list_iter != NULL) {
+            char* copy_filename = rel_dir_list_iter->str;
+
+            if (normalized_path[0] != '/' && strlen(copy_filename) >= 2)
+                copy_filename += 2;
+
+            rel_dir_list_iter->set_string(rel_dir_list_iter, alloc_and_copy(copy_filename));
+            rel_dir_list_iter = rel_dir_list_iter->next;
+        }
+    }
+
+    free(normalized_path);
+    string_list_free(list);
+    string_list_free(copy_list);
+
+    return relevant_directories_list;
 }

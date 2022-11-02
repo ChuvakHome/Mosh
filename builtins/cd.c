@@ -23,6 +23,7 @@ static void change_pwd() {
     var_list->put(var_list, "PWD", pwd);
 }
 
+/*
 static struct string_list* get_files_matches_template(const char *directory_path, const char *template, bool fullname) {
     DIR *dir = opendir(directory_path);
 
@@ -90,6 +91,7 @@ static struct string_list* get_relevant_directories(const char *path) {
 
     return relevant_directories_list;
 }
+*/
 
 int do_cd(const char* command_name, char **args, char **env) {
     const char* arg1 = args[1];
@@ -109,16 +111,16 @@ int do_cd(const char* command_name, char **args, char **env) {
         oldpwd_not_set = new_working_dir == NULL;
     }
     else {
-        rel_dir_list = get_relevant_directories(arg1);
+        rel_dir_list = get_relevant_directories(arg1, true);
 
         if (rel_dir_list->get_size(rel_dir_list) > 1) {
             struct string_list_node *tmp = rel_dir_list->head;
 
-            while (tmp != NULL) {
-                printf("NODE: %s\n", tmp->str);
-
-                tmp = tmp->next;
-            }
+            // while (tmp != NULL) {
+            //     printf("NODE: %s\n", tmp->str);
+            //
+            //     tmp = tmp->next;
+            // }
 
             fprintf(stderr, "%s: string is not in pwd: %s\n", command_name, rel_dir_list->head->str);
             string_list_free(rel_dir_list);
@@ -130,6 +132,8 @@ int do_cd(const char* command_name, char **args, char **env) {
         else
             new_working_dir = alloc_and_copy(rel_dir_list->head->str);
     }
+
+    printf("NEWPWD: %s\n", new_working_dir);
 
     int cd_result = chdir(new_working_dir);
 

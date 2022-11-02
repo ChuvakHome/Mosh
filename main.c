@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <dirent.h>
 
 #include <libgen.h>
@@ -204,10 +206,9 @@ int main(int argc, char **argv, char **env) {
 //
 //     printf("STR: %s\n", str);
 
-//     printf("%s\n", matches_template("builtins", "b**s") ? "true" : "false");
-//     printf("%s\n", matches_template("copy", "*y") ? "true" : "false");
-//     printf("%s\n", matches_template("copyleft", "*y") ? "true" : "false");
-//     printf("%s\n", matches_template("copyleft", "cop*y*") ? "true" : "false");
+//     printf("%s\n", normalize_file_name("./interpreter/interpreter.c"));
+//     printf("%s\n", normalize_file_name("."));
+//
 // #define __MY_SHELL_DEBUG__
 
 #ifndef __MY_SHELL_DEBUG__
