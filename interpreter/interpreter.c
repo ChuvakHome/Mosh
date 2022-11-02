@@ -206,14 +206,16 @@ struct string_list* tokenize_str(const char* str) {
     return tokenize(words);
 }
 
-static uint8_t file_type(const char *directory_name, const char  *filename) {
+static uint8_t file_type(const char *directory_name, const char *filename) {
     DIR *dir = opendir(directory_name);
+
+    char *buf = normalize_file_name(filename, NULL);
 
     if (dir != NULL) {
         struct dirent *ent;
 
         while ((ent = readdir(dir)) != NULL) {
-            if (string_equals(ent->d_name, filename)) {
+            if (string_equals(ent->d_name, buf)) {
                 closedir(dir);
                 return ent->d_type;
             }
@@ -221,6 +223,8 @@ static uint8_t file_type(const char *directory_name, const char  *filename) {
 
         closedir(dir);
     }
+
+    free(buf);
 
     return DT_UNKNOWN;
 }
@@ -335,6 +339,31 @@ static char* full_command_path(const char *command_name) {
     return concat_filename(file_dir, command_name);
 }
 
+static void autocd_autocat(const char* filename, struct string_list *tok_list, char **env) {
+    uint8_t ftype = file_type(pwd, filename);
+
+    char *command_path = NULL;
+    char **new_args = NULL;
+
+    switch (ftype) {
+        case DT_REG:
+            command_path = full_command_path("cat");
+            tok_list->insert(tok_list, 0, command_path);
+            new_args = tok_list->to_array(tok_list, true);
+            exec_command("cat", new_args, env);
+            break;
+        case DT_DIR:
+            command_path = full_command_path("cd");
+            do_autocd(filename, env);
+            break;
+        default:
+            break;
+    }
+
+    free(command_path);
+    string_list_to_array_free(tok_list, new_args);
+}
+
 static char* find_meta_command(const char *meta_command_sign) {
     if (meta_command_sign == NULL)
         return NULL;
@@ -417,7 +446,7 @@ void process_command(const char* command, char **env) {
             if (can_exec_command(command_name))
                 exec_command(command_name, new_args, env);
             else
-                do_autocd(command_name, env);
+                autocd_autocat(command_name, tok_list, env);
         }
     }
 
