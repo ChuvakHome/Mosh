@@ -339,7 +339,7 @@ static char* full_command_path(const char *command_name) {
     return concat_filename(file_dir, command_name);
 }
 
-static void autocd_autocat(const char* filename, struct string_list *tok_list, char **env) {
+static void autocat_autocd(const char* filename, struct string_list *tok_list, char **env) {
     uint8_t ftype = file_type(pwd, filename);
 
     char *command_path = NULL;
@@ -446,7 +446,7 @@ void process_command(const char* command, char **env) {
             if (can_exec_command(command_name))
                 exec_command(command_name, new_args, env);
             else
-                autocd_autocat(command_name, tok_list, env);
+                autocat_autocd(command_name, tok_list, env);
         }
     }
 
