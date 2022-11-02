@@ -248,6 +248,10 @@ static bool can_exec_command(const char *command_name) {
         return true;
     else {
         char *path_dir = find_file(command_name);
+
+        if (path_dir == NULL)
+            return false;
+
         uint8_t ftype = file_type(path_dir, command_name);
 
         return ftype == DT_REG;
