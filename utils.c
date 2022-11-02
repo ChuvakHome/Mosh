@@ -136,12 +136,12 @@ char* get_full_name(const char* filename) {
     pwd = get_wd();
 
     if (len <= 2) {
-        if (strcmp(filename, ".") == 0)
+        if (string_equals(filename, "."))
             return alloc_and_copy(pwd);
-        else if (strcmp(filename, "..") == 0) {
+        else if (string_equals(filename, "..")) {
             return alloc_and_copy(dirname(pwd));
         }
-        else if (strcmp(filename, "~") == 0)
+        else if (string_equals(filename, "~"))
             return alloc_and_copy(home);
     }
 
@@ -213,7 +213,7 @@ struct string_list* split_string(const char *str, const char *delim) {
 
 bool matches_template(const char *str, const char *template) {
     if (strstr(template, "*") == NULL)
-        return strcmp(str, template) == 0;
+        return string_equals(str, template);
 
     struct string_list *split_list = split_string(template, "*");
     struct string_list_node *tmp = split_list->head;

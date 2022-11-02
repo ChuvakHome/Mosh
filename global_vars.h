@@ -9,6 +9,7 @@ extern char* username;
 extern char* home;
 extern char* pwd;
 extern struct kv_list *var_list;
+extern struct kv_list *special_symbols;
 extern struct string_list *paths;
 
 #endif

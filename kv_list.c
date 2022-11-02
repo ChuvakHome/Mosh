@@ -174,7 +174,7 @@ void kv_list_free(struct kv_list* list) {
     while (tmp != NULL) {
         struct kv_list_node *remove = tmp;
         tmp = tmp->next;
-        free_node(tmp);
+        free_node(remove);
     }
 }
 

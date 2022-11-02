@@ -28,6 +28,7 @@ char *username;
 char *home;
 char *pwd;
 struct kv_list *var_list;
+struct kv_list *special_symbols;
 struct string_list *paths;
 
 static void fill_paths(char* paths_str) {
@@ -40,7 +41,6 @@ static void fill_paths(char* paths_str) {
         char cur_path[cur_path_size];
         strncpy(cur_path, paths_str, cur_path_size);
         cur_path[cur_path_size] = 0;
-        // printf("CUR_PATH: %s %zu %zu\n", cur_path, cur_path_size, strlen(cur_path));
 
         paths->add(paths, cur_path);
 
@@ -49,17 +49,6 @@ static void fill_paths(char* paths_str) {
 
     if (strlen(paths_str) > 0)
       paths->add(paths, paths_str);
-
-    // puts(">> PATHS:");
-
-    // struct string_list_node *tmp = paths->head;
-    //
-    // while (tmp != NULL) {
-    //     printf("%s\n", tmp->str);
-    //     tmp = tmp->next;
-    // }
-    //
-    // puts("<< PATHS");
 }
 
 static void config_variables() {
@@ -139,82 +128,24 @@ static void handler_function(int sig) {
     rl_forced_update_display();
 }
 
-static void try_do_pipe() {
-    pid_t pid = fork();
-    int status;
-
-    FILE *my_io = fopen("in_buffer", "w");
-    my_io = freopen("in_buffer", "w+", my_io);
-    int io_fd = fileno(my_io);
-
-    // FILE *my_out = fopen("out_buffer", "w");
-    // int out_fd = fileno(my_out);
-
-    int filedes1[] = { io_fd, 1 };
-    pipe(filedes1);
-
-    // dup2(io_fd, 1);
-    // int filedes2[] = { 0, io_fd };
-    // pipe(filedes2);
-    // dup2(0, io_fd);
-
-    if (pid == 0) {
-        execl("/bin/echo", "/bin/echo", "LOL", NULL);
-
-        exit(-1);
-    }
-    else if (pid > 0) {
-        do {
-            waitpid(pid, &status, WUNTRACED);
-        }  while (!WIFEXITED(status) && !WIFSIGNALED(status));
-
-        rewind(my_io);
-        int filedes2[] = { 0, io_fd };
-        pipe(filedes2);
-
-        pid = fork();
-
-        if (pid == 0) {
-            execl("/Users/aaamoj/utils/my_print", "/Users/aaamoj/utils/my_print", NULL);
-
-            // puts("KEKKEKE");
-
-            exit(-1);
-        } else if (pid > 0) {
-            do {
-                waitpid(pid, &status, WUNTRACED);
-            }  while (!WIFEXITED(status) && !WIFSIGNALED(status));
-        }
-
-        // exit(-1);
-
-        fclose(my_io);
-        // fclose(my_out);
-    }
-}
-
 bool is_piped() {
     return isatty(STDIN_FILENO) == 0;
 }
 
 #include "interpreter/interpreter_utils.h"
 
+void init_special_symbols() {
+    special_symbols = kv_list_create();
+    special_symbols->put(special_symbols, "~", home);
+}
+
 int main(int argc, char **argv, char **env) {
-//     init_var_list(env);
-//
-//     char *str = insert_var_values("\"LOL $PWD\"");
-//
-//     printf("STR: %s\n", str);
-
-//     printf("%s\n", normalize_file_name("./interpreter/interpreter.c"));
-//     printf("%s\n", normalize_file_name("."));
-//
-// #define __MY_SHELL_DEBUG__
-
 #ifndef __MY_SHELL_DEBUG__
     init_var_list(env);
 
     config();
+
+    init_special_symbols();
 
     signal(SIGINT, handler_function);
 
@@ -241,6 +172,7 @@ int main(int argc, char **argv, char **env) {
         puts("");
 
     kv_list_free(var_list);
+    kv_list_free(special_symbols);
     string_list_free(paths);
 #endif
 

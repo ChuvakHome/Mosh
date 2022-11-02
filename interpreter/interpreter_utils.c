@@ -107,3 +107,49 @@ char* insert_var_values(const char *str) {
 
     return result;
 }
+
+#include <stdio.h>
+
+static char* find_any_special_symbol(const char *str) {
+    struct kv_list_node *tmp = special_symbols->head;
+
+    while (tmp != NULL) {
+        char *pos = strchr(str, tmp->data.key[0]);
+
+        if (pos != NULL)
+            return pos;
+
+        tmp = tmp->next;
+    }
+
+    return NULL;
+}
+
+char* insert_special_symbols(const char *str) {
+    char *buf = alloc_and_copy("");
+    char *pos;
+
+    while ((pos = find_any_special_symbol(str)) != NULL) {
+        char *tmp = substrp(str, pos);
+        char spec_sym[] = { pos[0], 0 };
+
+        char *buf_copy = buf;
+
+        buf = concat(buf_copy, tmp);
+        free(buf_copy);
+        buf_copy = buf;
+
+        buf = concat(buf_copy, special_symbols->find(special_symbols, spec_sym));
+
+        str = pos + 1;
+
+        free(buf_copy);
+        free(tmp);
+    }
+
+    char *buf_copy = buf;
+    buf = concat(buf_copy, str);
+    free(buf_copy);
+
+    return buf;
+}

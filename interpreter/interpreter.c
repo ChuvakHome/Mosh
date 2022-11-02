@@ -130,7 +130,7 @@ static bool deep_search_file(const char *directory_name, const char *filename) {
         struct dirent *ent;
 
         while ((ent = readdir(dir)) != NULL) {
-            if (strcmp(ent->d_name, filename) == 0) {
+            if (string_equals(ent->d_name, filename)) {
                 closedir(dir);
                 return true;
             }
@@ -213,7 +213,7 @@ static uint8_t file_type(const char *directory_name, const char  *filename) {
         struct dirent *ent;
 
         while ((ent = readdir(dir)) != NULL) {
-            if (strcmp(ent->d_name, filename) == 0) {
+            if (string_equals(ent->d_name, filename)) {
                 closedir(dir);
                 return ent->d_type;
             }
@@ -277,7 +277,7 @@ static enum builtin_func_type find_builtin_for(const char* command) {
     ptrdiff_t i = 0;
 
     while (builtin_func_list[i].type != UNKNOWN_BUILTIN) {
-        if (strcmp(builtin_func_list[i].name, command) == 0)
+        if (string_equals(builtin_func_list[i].name, command))
             break;
 
         ++i;
@@ -288,6 +288,10 @@ static enum builtin_func_type find_builtin_for(const char* command) {
 
 static bool need_replace(char *str) {
     return str[0] != '\'';
+}
+
+static bool need_replace_special_symbol(char *str) {
+    return str[0] != '\'' && str[0] != '"';
 }
 
 static bool is_quote(char x) {
@@ -302,6 +306,12 @@ static void process_list(struct string_list *tok_list) {
 
         if (need_replace(s))
             s = insert_var_values(s);
+
+        if (need_replace_special_symbol(s)) {
+            char *str_copy = s;
+            s = insert_special_symbols(str_copy);
+            free(str_copy);
+        }
 
         node->set_string(node, s + (is_quote(s[0]) ? 1 : 0));
 
@@ -328,7 +338,7 @@ static char* find_meta_command(const char *meta_command_sign) {
     ptrdiff_t idx = 0;
 
     while (meta_command_func_list[idx].type != UNKNOWN_META_COMMAND) {
-        if (strcmp(meta_command_func_list[idx].meta_command_sign, meta_command_sign) == 0)
+        if (string_equals(meta_command_func_list[idx].meta_command_sign, meta_command_sign))
             return meta_command_func_list[idx].meta_command_name;
 
         idx++;

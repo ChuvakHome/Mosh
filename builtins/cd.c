@@ -104,7 +104,7 @@ int do_cd(const char* command_name, char **args, char **env) {
 
     if (arg1 == NULL)
         new_working_dir = alloc_and_copy(var_list->find(var_list, "HOME"));
-    else if (strcmp(arg1, "-") == 0) {
+    else if (string_equals(arg1, "-")) {
         new_working_dir = alloc_and_copy(var_list->find(var_list, "OLDPWD"));
 
         print_path_flag = true;
@@ -114,14 +114,6 @@ int do_cd(const char* command_name, char **args, char **env) {
         rel_dir_list = get_relevant_directories(arg1, true);
 
         if (rel_dir_list->get_size(rel_dir_list) > 1) {
-            struct string_list_node *tmp = rel_dir_list->head;
-
-            // while (tmp != NULL) {
-            //     printf("NODE: %s\n", tmp->str);
-            //
-            //     tmp = tmp->next;
-            // }
-
             fprintf(stderr, "%s: string is not in pwd: %s\n", command_name, rel_dir_list->head->str);
             string_list_free(rel_dir_list);
 
@@ -132,8 +124,6 @@ int do_cd(const char* command_name, char **args, char **env) {
         else
             new_working_dir = alloc_and_copy(rel_dir_list->head->str);
     }
-
-    printf("NEWPWD: %s\n", new_working_dir);
 
     int cd_result = chdir(new_working_dir);
 
