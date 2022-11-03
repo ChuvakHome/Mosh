@@ -247,19 +247,39 @@ static void do_autocd(const char* filename, char **env) {
     // }
 }
 
-static bool can_exec_command(const char *command_name) {
-    if (command_name[0] == '/')
-        return true;
-    else {
-        char *path_dir = find_file(command_name);
+uint8_t get_file_type(const char *filename) {
+    char *filename_copy = alloc_and_copy(filename);
+    size_t filename_len = strlen(filename);
 
-        if (path_dir == NULL)
-            return false;
+    if (filename[filename_len - 1] == '/')
+        filename_copy[filename_len - 1] = 0;
 
-        uint8_t ftype = file_type(path_dir, command_name);
+    char *path_dir = NULL;
+    char *slash_last_pos = strrchr(filename_copy, '/');
+    char *search_file = NULL;
 
-        return ftype == DT_REG;
+    if (slash_last_pos != NULL) {
+        path_dir = substrp(filename_copy, slash_last_pos);
+        search_file = slash_last_pos + 1;
     }
+    else {
+        path_dir = alloc_and_copy(find_file(filename_copy));
+        search_file = filename_copy;
+    }
+
+    if (path_dir == NULL)
+        return DT_UNKNOWN;
+
+    uint8_t ftype = file_type(path_dir, search_file);
+
+    free(path_dir);
+    free(filename_copy);
+
+    return ftype;
+}
+
+static bool can_exec_command(const char *command_name) {
+    return get_file_type(command_name) == DT_REG;
 }
 
 static void exec_command(const char* command_name, char** new_args, char **env) {
@@ -340,7 +360,7 @@ static char* full_command_path(const char *command_name) {
 }
 
 static void autocat_autocd(const char* filename, struct string_list *tok_list, char **env) {
-    uint8_t ftype = file_type(pwd, filename);
+    uint8_t ftype = get_file_type(filename);
 
     char *command_path = NULL;
     char **new_args = NULL;
