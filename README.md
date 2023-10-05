@@ -1,7 +1,7 @@
-# Rush
+# Mosh
 Command Line Interpreter on C.
 
-My attempt to make interpreter like bash, zsh.
+My Own Shell (MOSh) is an attempt to make interpreter like bash, zsh.
 
 Avaliable features:
 
